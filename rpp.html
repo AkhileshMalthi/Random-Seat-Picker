@@ -53,19 +53,26 @@
             justify-content: center;
             align-items: center;
             color: #8d8787;
-            /* font-weight: bold; */
+            font-weight: bold;
             transition: all 0.3s ease;
         }
-        .seat.highlight {
-            background-color: #8d7d44;
+        .seat:hover:not(.disabled), .seat.highlight {
+            background-color: #4a4a4a;
+            color: white;
             transform: scale(1.1);
         }
         .seat.selected {
             background-color: #e74c3c;
             border-color: #c0392b;
-            animation: pulse 1s infinite;
             color: white;
-            font-weight: bold;
+            animation: pulse 1s infinite;
+        }
+        .seat.disabled {
+            background-color: #555;
+            border-color: #c0392b;
+            color: #c0392b;
+            cursor: not-allowed;
+            opacity: 0.6;
         }
         button {
             padding: 12px 24px;
@@ -95,9 +102,9 @@
 <body>
     <div id="controls">
         <label for="rows">Rows:</label>
-        <input type="number" id="rows" min="1" max="26" value="14">
+        <input type="number" id="rows" min="1" value="14">
         <label for="columns">Columns:</label>
-        <input type="number" id="columns" min="1" max="20" value="12">
+        <input type="number" id="columns" min="1" max="26" value="12">
     </div>
     <div id="seating-area"></div>
     <button onclick="pickRandomSeat()">Pick Random Seat</button>
@@ -107,6 +114,8 @@
 
     <script>
         let seats = [];
+        let selectedSeats = new Set();  // To track selected seats
+        let currentSeat = null;         // To keep track of the last selected seat
         let animationInterval;
 
         function generateSeats() {
@@ -131,10 +140,11 @@
             for (let i = 0; i < rows; i++) {
                 for (let j = 0; j < columns; j++) {
                     const seat = document.createElement('div');
-                    const seatLabel = `${alphabet[j]}${i + 1}`;  // Format: A1, A2, B1, etc.
+                    const seatLabel = `${i + 1}${alphabet[j]}`;  // Format: 1A, 1B, 2A, etc.
                     seat.className = 'seat';
-                    seat.dataset.row = alphabet[i];
-                    seat.dataset.column = j + 1;
+                    seat.dataset.row = i + 1;
+                    seat.dataset.column = alphabet[j];
+                    seat.dataset.seatLabel = seatLabel;
                     seat.textContent = seatLabel;  // Display seat label
                     seatingArea.appendChild(seat);
                     seats.push(seat);
@@ -152,21 +162,37 @@
             if (seats.length === 0) return;
             
             clearInterval(animationInterval);
-            seats.forEach(seat => seat.classList.remove('selected', 'highlight'));
-            
+            seats.forEach(seat => seat.classList.remove('highlight'));
+
+            // Disable the previously selected seat, if any
+            if (currentSeat) {
+                currentSeat.classList.remove('selected');
+                currentSeat.classList.add('disabled');  // Disable previous seat
+                selectedSeats.add(currentSeat.dataset.seatLabel);  // Add to the set of selected seats
+            }
+
+            // Get the available (not yet selected) seats
+            const availableSeats = seats.filter(seat => !selectedSeats.has(seat.dataset.seatLabel));
+
+            if (availableSeats.length === 0) {
+                alert('All seats have been selected.');
+                return;
+            }
+
             let highlightIndex = 0;
             animationInterval = setInterval(() => {
-                seats[highlightIndex].classList.remove('highlight');
-                highlightIndex = Math.floor(Math.random() * seats.length);
-                seats[highlightIndex].classList.add('highlight');
+                availableSeats[highlightIndex].classList.remove('highlight');
+                highlightIndex = Math.floor(Math.random() * availableSeats.length);
+                availableSeats[highlightIndex].classList.add('highlight');
             }, 100);
 
             setTimeout(() => {
                 clearInterval(animationInterval);
-                const selectedIndex = Math.floor(Math.random() * seats.length);
+                const selectedIndex = Math.floor(Math.random() * availableSeats.length);
                 seats.forEach(seat => seat.classList.remove('highlight'));
-                const selectedSeat = seats[selectedIndex];
-                selectedSeat.classList.add('selected');
+                const selectedSeat = availableSeats[selectedIndex];
+                selectedSeat.classList.add('selected');  // Only mark as selected, not disabled
+                currentSeat = selectedSeat;  // Store reference to the current seat
                 
                 // Update the selected seat info
                 const selectedRow = selectedSeat.dataset.row;

@@ -15,6 +15,7 @@
             padding: 20px;
             background-color: #1a1a1a;
             color: #ffffff;
+            overflow-y: auto; /* Enable scrolling for the body */
         }
         #controls {
             display: flex;
@@ -56,7 +57,7 @@
             font-weight: bold;
             transition: all 0.3s ease;
         }
-        .seat:hover:not(.disabled), .seat.highlight {
+        .seat:hover:not(.disabled, .selected), .seat.highlight {
             background-color: #4a4a4a;
             color: white;
             transform: scale(1.1);
@@ -145,6 +146,7 @@
                     seat.dataset.row = i + 1;
                     seat.dataset.column = alphabet[j];
                     seat.dataset.seatLabel = seatLabel;
+                    seat.tabIndex = "0";  // Make seat focusable
                     seat.textContent = seatLabel;  // Display seat label
                     seatingArea.appendChild(seat);
                     seats.push(seat);
@@ -193,6 +195,10 @@
                 const selectedSeat = availableSeats[selectedIndex];
                 selectedSeat.classList.add('selected');  // Only mark as selected, not disabled
                 currentSeat = selectedSeat;  // Store reference to the current seat
+
+                // Shift focus to the selected seat and scroll it into view
+                selectedSeat.focus();
+                selectedSeat.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 
                 // Update the selected seat info
                 const selectedRow = selectedSeat.dataset.row;

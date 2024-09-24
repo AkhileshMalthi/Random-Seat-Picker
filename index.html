@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Seat Picker - Dark Mode</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            overflow-y: auto; /* Enable scrolling for the body */
+        }
+        #controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            background-color: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        #controls input {
+            width: 60px;
+            padding: 5px;
+            border: none;
+            background-color: #3a3a3a;
+            color: #ffffff;
+            border-radius: 5px;
+        }
+        #seating-area {
+            display: grid;
+            gap: 10px 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #2a2a2a;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .seat {
+            width: 40px;
+            height: 40px;
+            background-color: #3a3a3a;
+            border: 2px solid #4a4a4a;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #8d8787;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .seat:hover:not(.disabled, .selected), .seat.highlight {
+            background-color: #4a4a4a;
+            color: white;
+            transform: scale(1.1);
+        }
+        .seat.selected {
+            background-color: #e74c3c;
+            border-color: #c0392b;
+            color: white;
+            animation: pulse 1s infinite;
+        }
+        .seat.disabled {
+            background-color: #555;
+            border-color: #c0392b;
+            color: #c0392b;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #3498db;
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #selected-seat {
+            font-size: 18px;
+            margin-top: 20px;
+            color: #ffffff;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <label for="rows">Rows:</label>
+        <input type="number" id="rows" min="1" value="14">
+        <label for="columns">Columns:</label>
+        <input type="number" id="columns" min="1" max="26" value="12">
+    </div>
+    <div id="seating-area"></div>
+    <button onclick="pickRandomSeat()">Pick Random Seat</button>
+    
+    <!-- Display selected seat -->
+    <div id="selected-seat">Selected Seat: None</div>
+
+    <script>
+        let seats = [];
+        let selectedSeats = new Set();  // To track selected seats
+        let currentSeat = null;         // To keep track of the last selected seat
+        let animationInterval;
+
+        function generateSeats() {
+            const rows = parseInt(document.getElementById('rows').value);
+            const columns = parseInt(document.getElementById('columns').value);
+            const seatingArea = document.getElementById('seating-area');
+            seatingArea.innerHTML = '';
+            
+            // Create a template for columns with gaps
+            let columnTemplate = '';
+            for (let i = 0; i < columns; i++) {
+                columnTemplate += '1fr ';
+                if ((i + 1) % 3 === 0 && i !== columns - 1) {
+                    columnTemplate += '0.5fr ';
+                }
+            }
+            seatingArea.style.gridTemplateColumns = columnTemplate.trim();
+            
+            seats = [];
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+            for (let i = 0; i < rows; i++) {
+/*                // Add an empty div for the gap after every 3 columns
+                if (i % 14 === 0 && i !== rows - 1) {
+                    for(let j = 0; j < columns; j++){
+                        const gap = document.createElement('div');
+                        seatingArea.appendChild(gap);
+                        // Add an empty div for the gap after every 3 columns
+                        if ((j + 1) % 3 === 0 && j !== columns - 1) {
+                            const gap = document.createElement('div');
+                            seatingArea.appendChild(gap);
+                        }
+                    }
+                }
+*/
+                for (let j = 0; j < columns; j++) {
+                    const seat = document.createElement('div');
+                    const seatLabel = `${i + 1}${alphabet[j]}`;  // Format: 1A, 1B, 2A, etc.
+                    seat.className = 'seat';
+                    seat.dataset.row = i + 1;
+                    seat.dataset.column = alphabet[j];
+                    seat.dataset.seatLabel = seatLabel;
+                    seat.tabIndex = "0";  // Make seat focusable
+                    seat.textContent = seatLabel;  // Display seat label
+                    seatingArea.appendChild(seat);
+                    seats.push(seat);
+                    
+                    // Add an empty div for the gap after every 3 columns
+                    if ((j + 1) % 3 === 0 && j !== columns - 1) {
+                        const gap = document.createElement('div');
+                        seatingArea.appendChild(gap);
+                    }
+                }
+            }
+        }
+
+        function pickRandomSeat() {
+            if (seats.length === 0) return;
+            
+            clearInterval(animationInterval);
+            seats.forEach(seat => seat.classList.remove('highlight'));
+
+            // Disable the previously selected seat, if any
+            if (currentSeat) {
+                currentSeat.classList.remove('selected');
+                currentSeat.classList.add('disabled');  // Disable previous seat
+                selectedSeats.add(currentSeat.dataset.seatLabel);  // Add to the set of selected seats
+            }
+
+            // Get the available (not yet selected) seats
+            const availableSeats = seats.filter(seat => !selectedSeats.has(seat.dataset.seatLabel));
+
+            if (availableSeats.length === 0) {
+                alert('All seats have been selected.');
+                return;
+            }
+
+            let highlightIndex = 0;
+            animationInterval = setInterval(() => {
+                availableSeats[highlightIndex].classList.remove('highlight');
+                highlightIndex = Math.floor(Math.random() * availableSeats.length);
+                availableSeats[highlightIndex].classList.add('highlight');
+            }, 100);
+
+            setTimeout(() => {
+                clearInterval(animationInterval);
+                const selectedIndex = Math.floor(Math.random() * availableSeats.length);
+                seats.forEach(seat => seat.classList.remove('highlight'));
+                const selectedSeat = availableSeats[selectedIndex];
+                selectedSeat.classList.add('selected');  // Only mark as selected, not disabled
+                currentSeat = selectedSeat;  // Store reference to the current seat
+
+                // Shift focus to the selected seat and scroll it into view
+                selectedSeat.focus();
+                selectedSeat.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Update the selected seat info
+                const selectedRow = selectedSeat.dataset.row;
+                const selectedColumn = selectedSeat.dataset.column;
+                document.getElementById('selected-seat').innerText = `Selected Seat: ${selectedRow}${selectedColumn}`;
+            }, 2000);
+        }
+
+        // Event listeners for input changes
+        document.getElementById('rows').addEventListener('change', generateSeats);
+        document.getElementById('columns').addEventListener('change', generateSeats);
+
+        // Initial generation of seats
+        generateSeats();
+    </script>
+</body>
+</html>
